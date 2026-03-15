@@ -1,0 +1,264 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+    <meta charset="UTF-8">
+    <title>CasualPlotw | GHOST CHIMERA v12.0</title>
+    <style>
+        :root { --neon: #00ffcc; --bg: #050508; --panel: rgba(10, 15, 20, 0.9); --alert: #ff2a2a; }
+        body { margin: 0; background: var(--bg); color: var(--neon); font-family: 'Share Tech Mono', 'Courier New', monospace; overflow: hidden; height: 100vh; }
+
+        /* Cyberpunk Grid Background */
+        body::before { content: ""; position: fixed; width: 100%; height: 100%; top: 0; left: 0; background-image: linear-gradient(rgba(0, 255, 204, 0.03) 1px, transparent 1px), linear-gradient(90deg, rgba(0, 255, 204, 0.03) 1px, transparent 1px); background-size: 30px 30px; z-index: 0; pointer-events: none; }
+
+        .interface { position: relative; z-index: 10; display: grid; grid-template-columns: 300px 1fr 300px; grid-template-rows: 70px 1fr 150px; height: 100vh; padding: 15px; gap: 15px; box-sizing: border-box; }
+
+        /* Glassmorphism Panels */
+        .glass-panel { background: var(--panel); border: 1px solid rgba(0, 255, 204, 0.2); border-radius: 4px; padding: 20px; box-shadow: inset 0 0 20px rgba(0,0,0,0.5), 0 0 15px rgba(0, 255, 204, 0.05); display: flex; flex-direction: column; overflow: hidden; position: relative; }
+        .glass-panel::after { content: ""; position: absolute; top: -50%; left: -50%; width: 200%; height: 200%; background: linear-gradient(rgba(255,255,255,0.01), transparent); transform: rotate(45deg); pointer-events: none; }
+
+        .header { grid-column: 1 / 4; display: flex; justify-content: space-between; align-items: center; border-bottom: 2px solid var(--neon); }
+        .terminal { grid-column: 1 / 4; background: #000; border-top: 1px solid var(--neon); font-size: 0.8rem; overflow-y: auto; color: #00ccaa; padding: 10px; }
+
+        h1 { margin: 0; font-size: 1.8rem; letter-spacing: 8px; text-shadow: 0 0 10px var(--neon); }
+        
+        /* Module Tabs */
+        .tabs { display: flex; gap: 10px; margin-bottom: 15px; }
+        .tab-btn { flex: 1; padding: 10px; background: transparent; border: 1px solid var(--neon); color: var(--neon); cursor: pointer; text-transform: uppercase; font-weight: bold; transition: 0.3s; }
+        .tab-btn.active { background: var(--neon); color: #000; box-shadow: 0 0 15px var(--neon); }
+
+        textarea, input[type="file"] { width: 100%; background: rgba(0,0,0,0.8); border: 1px solid #333; color: var(--neon); padding: 15px; font-family: inherit; font-size: 0.9rem; outline: none; transition: 0.3s; box-sizing: border-box; margin-bottom: 15px; resize: none; }
+        textarea:focus { border-color: var(--neon); box-shadow: inset 0 0 10px rgba(0, 255, 204, 0.2); }
+        
+        .btn-group { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+        button.action-btn { background: transparent; border: 1px solid var(--neon); color: var(--neon); padding: 12px; cursor: pointer; text-transform: uppercase; letter-spacing: 2px; font-weight: bold; transition: 0.2s; }
+        button.action-btn:hover { background: var(--neon); color: #000; box-shadow: 0 0 20px var(--neon); }
+
+        /* Image Preview Area */
+        #img-preview-container { text-align: center; margin-bottom: 15px; border: 1px dashed #444; padding: 10px; display: none; background: #000; position: relative; }
+        #img-preview { max-width: 100%; max-height: 200px; border: 1px solid var(--neon); }
+        .download-hint { position: absolute; bottom: 15px; right: 15px; background: rgba(0,0,0,0.8); padding: 5px 10px; font-size: 0.7rem; border: 1px solid var(--neon); display: none; pointer-events: none; }
+
+        .log-line { margin-bottom: 4px; animation: fadeIn 0.3s; }
+        @keyframes fadeIn { from { opacity: 0; transform: translateX(-10px); } to { opacity: 1; transform: translateX(0); } }
+    </style>
+</head>
+<body>
+
+<div class="interface">
+    <div class="glass-panel header">
+        <div>
+            <div style="font-size: 0.6rem; color: #777;">SYS_ADMIN: CASUALPLOTW</div>
+            <h1>CHIMERA_PROTOCOL</h1>
+        </div>
+        <div style="text-align: right;">
+            <div id="clock" style="font-size: 1.2rem;">00:00:00</div>
+            <div style="color: var(--neon); font-size: 0.7rem;">MULTI-VECTOR STEGANOGRAPHY: ONLINE</div>
+        </div>
+    </div>
+
+    <div class="glass-panel">
+        <div style="font-size: 0.8rem; margin-bottom: 10px; border-bottom: 1px solid #333; padding-bottom: 5px;">SYSTEM_DIAGNOSTICS</div>
+        <div style="font-size: 0.7rem; color: #888; margin-bottom: 20px;">
+            > CPU_LOAD: <span id="cpu">12%</span><br>
+            > MEM_ALLOC: 450MB<br>
+            > ENCRYPTION_MATRIX: ACTIVE
+        </div>
+        <div style="margin-top: auto; border: 1px solid var(--neon); padding: 10px; font-size: 0.7rem; text-align: center; background: rgba(0, 255, 204, 0.05);">
+            GHOST_CORE_V12 READY
+        </div>
+    </div>
+
+    <div class="glass-panel" style="padding: 30px;">
+        <div class="tabs">
+            <button class="tab-btn active" onclick="switchMode('text')">TXT_MODULE (Görünmez)</button>
+            <button class="tab-btn" onclick="switchMode('image')">IMG_MODULE (Piksel)</button>
+        </div>
+
+        <div id="text-mode">
+            <textarea id="txt-input" style="height: 180px;" placeholder="GİZLENECEK METNİ VEYA ŞİFRELİ CÜMLEYİ BURAYA GİRİN..."></textarea>
+            <div class="btn-group">
+                <button class="action-btn" onclick="textSteg(true)">Enjekte Et</button>
+                <button class="action-btn" onclick="textSteg(false)">Ayıkla</button>
+            </div>
+        </div>
+
+        <div id="image-mode" style="display: none;">
+            <input type="file" id="img-upload" accept="image/png, image/jpeg" onchange="loadImage(event)">
+            
+            <div id="img-preview-container">
+                <img id="img-preview">
+                <div id="dl-hint" class="download-hint">Sağ Tıkla -> Resmi Kaydet</div>
+            </div>
+
+            <textarea id="img-payload" style="height: 80px;" placeholder="RESMİN İÇİNE GİZLENECEK GİZLİ KOD/METİN..."></textarea>
+            
+            <div class="btn-group">
+                <button class="action-btn" onclick="imageSteg(true)">Piksellere Göm</button>
+                <button class="action-btn" onclick="imageSteg(false)">Piksellerden Çıkar</button>
+            </div>
+        </div>
+    </div>
+
+    <div class="glass-panel">
+        <div style="font-size: 0.8rem; margin-bottom: 10px; border-bottom: 1px solid #333; padding-bottom: 5px;">DATA_STREAM</div>
+        <div id="stream" style="font-size: 0.65rem; color: #008866; overflow-y: hidden; height: 100%; word-break: break-all;"></div>
+    </div>
+
+    <div class="glass-panel terminal" id="terminal">
+        <div class="log-line">> CHIMERA_OS Başlatıldı. Tüm sistemler operasyonel.</div>
+    </div>
+</div>
+
+<canvas id="hidden-canvas" style="display:none;"></canvas>
+
+<script>
+    // System UI Updates
+    setInterval(() => {
+        document.getElementById('clock').innerText = new Date().toLocaleTimeString();
+        document.getElementById('cpu').innerText = Math.floor(Math.random() * 20 + 10) + "%";
+        
+        const stream = document.getElementById('stream');
+        const hex = () => Math.floor(Math.random()*256).toString(16).padStart(2, '0').toUpperCase();
+        stream.innerHTML = `0x${hex()}${hex()} : ${hex()} ${hex()} ${hex()} ${hex()}<br>` + stream.innerHTML;
+        if(stream.innerHTML.length > 800) stream.innerHTML = stream.innerHTML.substring(0, 800);
+    }, 1000);
+
+    function log(msg, type="info") {
+        const term = document.getElementById('terminal');
+        const color = type === "error" ? "var(--alert)" : "var(--neon)";
+        term.innerHTML += `<div class="log-line" style="color: ${color}">> [${new Date().toLocaleTimeString()}] ${msg}</div>`;
+        term.scrollTop = term.scrollHeight;
+    }
+
+    function switchMode(mode) {
+        document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+        if(mode === 'text') {
+            document.getElementById('text-mode').style.display = 'block';
+            document.getElementById('image-mode').style.display = 'none';
+            document.querySelectorAll('.tab-btn')[0].classList.add('active');
+            log("TXT_MODULE (Zero-Width) aktif edildi.");
+        } else {
+            document.getElementById('text-mode').style.display = 'none';
+            document.getElementById('image-mode').style.display = 'block';
+            document.querySelectorAll('.tab-btn')[1].classList.add('active');
+            log("IMG_MODULE (LSB Pixel Injection) aktif edildi.");
+        }
+    }
+
+    // --- TEXT STEGANOGRAPHY (Zero-Width) ---
+    const ZW = ['\u200B', '\u200C', '\u200D', '\u200E'];
+    function textSteg(isEncrypt) {
+        const input = document.getElementById('txt-input');
+        if(!input.value) { log("Veri girişi boş!", "error"); return; }
+
+        if(isEncrypt) {
+            let b64 = btoa(unescape(encodeURIComponent(input.value)));
+            let hidden = "";
+            for(let c of b64) {
+                let b4 = c.charCodeAt(0).toString(4).padStart(4, '0');
+                for(let d of b4) hidden += ZW[parseInt(d)];
+            }
+            input.value = "KAYIT_ONAYLANDI: Bu dosya temiz görünüyor." + hidden;
+            log("Metin hayalet karakterlere dönüştürüldü.");
+        } else {
+            let found = "";
+            for(let c of input.value) { let idx = ZW.indexOf(c); if(idx !== -1) found += idx; }
+            try {
+                let res = "";
+                for(let i=0; i<found.length; i+=4) res += String.fromCharCode(parseInt(found.substr(i,4), 4));
+                if(!res) throw "NoData";
+                input.value = "ÇÖZÜLEN_VERİ:\n" + decodeURIComponent(escape(atob(res)));
+                log("Gizli metin başarıyla çıkartıldı.");
+            } catch(e) { log("Hata: Gizli veri bulunamadı veya bozuk!", "error"); }
+        }
+    }
+
+    // --- IMAGE STEGANOGRAPHY (LSB) ---
+    const canvas = document.getElementById('hidden-canvas');
+    const ctx = canvas.getContext('2d');
+    const preview = document.getElementById('img-preview');
+    const previewContainer = document.getElementById('img-preview-container');
+
+    function loadImage(event) {
+        const reader = new FileReader();
+        reader.onload = (e) => {
+            preview.src = e.target.result;
+            previewContainer.style.display = 'block';
+            document.getElementById('dl-hint').style.display = 'none';
+            log("Görsel arabelleğe yüklendi.");
+        };
+        if(event.target.files[0]) reader.readAsDataURL(event.target.files[0]);
+    }
+
+    function imageSteg(isEncrypt) {
+        if(!preview.src || preview.src === window.location.href) { log("Lütfen önce bir resim yükleyin!", "error"); return; }
+        
+        // Resmi Canvas'a çiz
+        canvas.width = preview.naturalWidth;
+        canvas.height = preview.naturalHeight;
+        ctx.drawImage(preview, 0, 0);
+        let imgData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+        let data = imgData.data;
+
+        if(isEncrypt) {
+            const payload = document.getElementById('img-payload').value;
+            if(!payload) { log("Resme gömülecek kod/metin boş!", "error"); return; }
+            
+            log("Piksel manipülasyonu başlatılıyor...");
+            // Mesajı Binary'e çevir ve sonuna ayırıcı [EOF] ekle
+            const msg = payload + "[EOF]";
+            let binaryMsg = "";
+            for(let i=0; i<msg.length; i++) {
+                binaryMsg += msg.charCodeAt(i).toString(2).padStart(8, '0');
+            }
+
+            if(binaryMsg.length > data.length / 4) {
+                log("Hata: Resim bu kadar veriyi taşıyamayacak kadar küçük!", "error");
+                return;
+            }
+
+            // Kırmızı (Red) kanalının en alt bitine (LSB) veriyi yaz
+            for(let i=0; i<binaryMsg.length; i++) {
+                data[i * 4] = (data[i * 4] & 0xFE) | parseInt(binaryMsg[i]);
+            }
+
+            ctx.putImageData(imgData, 0, 0);
+            preview.src = canvas.toDataURL("image/png"); // PNG olmak zorunda, JPG veriyi bozar
+            document.getElementById('img-payload').value = "";
+            document.getElementById('dl-hint').style.display = 'block';
+            log("VERİ RESME GÖMÜLDÜ! Resmi sağ tıklayıp 'Farklı Kaydet' ile indirin (PNG formatında).");
+
+        } else {
+            log("Pikseller analiz ediliyor...");
+            let binaryMsg = "";
+            let extractedMsg = "";
+            
+            // Piksellerden LSB'leri oku
+            for(let i=0; i<data.length; i+=4) {
+                binaryMsg += (data[i] & 1).toString();
+                
+                // Her 8 bitte bir karaktere çevir
+                if(binaryMsg.length === 8) {
+                    let charCode = parseInt(binaryMsg, 2);
+                    extractedMsg += String.fromCharCode(charCode);
+                    binaryMsg = "";
+                    
+                    // Ayırıcıyı bulduysak dur
+                    if(extractedMsg.endsWith("[EOF]")) {
+                        extractedMsg = extractedMsg.slice(0, -5);
+                        break;
+                    }
+                }
+            }
+
+            if(extractedMsg) {
+                document.getElementById('img-payload').value = extractedMsg;
+                log("Resimdeki kod/metin başarıyla ayıklandı!");
+            } else {
+                log("Bu resimde herhangi bir veri bulunamadı.", "error");
+            }
+        }
+    }
+</script>
+</body>
+</html>
