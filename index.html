@@ -1,0 +1,219 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+    <meta charset="UTF-8">
+    <title>CasualPlotw | GHOST GENESIS v7.0</title>
+    <style>
+        :root { --neon: #00ff88; --dark: #020202; --panel: rgba(10, 10, 12, 0.98); --glitch: #ff0055; }
+        body { margin: 0; background: var(--dark); color: var(--neon); font-family: 'Courier New', monospace; height: 100vh; display: flex; overflow: hidden; }
+
+        /* CRT & Scanline Effect */
+        body::before { content: " "; position: absolute; top: 0; left: 0; bottom: 0; right: 0; background: linear-gradient(rgba(18, 16, 16, 0) 50%, rgba(0, 0, 0, 0.25) 50%), linear-gradient(90deg, rgba(255, 0, 0, 0.06), rgba(0, 255, 0, 0.02), rgba(0, 0, 255, 0.06)); z-index: 100; background-size: 100% 2px, 3px 100%; pointer-events: none; }
+        
+        canvas#matrix { position: fixed; top: 0; left: 0; z-index: 1; opacity: 0.1; }
+
+        .os-interface { position: relative; z-index: 10; display: flex; width: 100%; height: 100%; padding: 20px; box-sizing: border-box; gap: 20px; }
+        
+        /* Side Navigation */
+        .sidebar { width: 60px; display: flex; flex-direction: column; gap: 15px; border-right: 1px solid #222; padding-right: 10px; }
+        .nav-icon { width: 50px; height: 50px; border: 1px solid var(--neon); border-radius: 5px; cursor: pointer; display: flex; align-items: center; justify-content: center; font-size: 1.2rem; transition: 0.3s; }
+        .nav-icon:hover { background: var(--neon); color: black; box-shadow: 0 0 15px var(--neon); }
+        .nav-icon.active { background: var(--neon); color: black; }
+
+        /* Main Workspace */
+        .workspace { flex: 4; background: var(--panel); border: 1px solid #333; border-radius: 10px; padding: 25px; display: flex; flex-direction: column; }
+        
+        /* Terminal / Log Panel */
+        .terminal { flex: 2; background: black; border: 1px solid #111; border-radius: 10px; padding: 15px; overflow-y: auto; font-size: 0.75rem; color: #00cc66; }
+        .t-line { margin-bottom: 4px; border-left: 2px solid #004422; padding-left: 8px; }
+
+        h1 { font-size: 1.2rem; letter-spacing: 5px; margin: 0 0 20px 0; border-bottom: 1px solid #222; padding-bottom: 10px; text-transform: uppercase; }
+        
+        textarea, input { width: 100%; background: #000; border: 1px solid #222; color: var(--neon); padding: 15px; border-radius: 5px; box-sizing: border-box; margin-bottom: 15px; outline: none; font-family: inherit; }
+        textarea:focus { border-color: var(--neon); }
+
+        .btn-row { display: flex; gap: 10px; }
+        button { flex: 1; padding: 15px; background: transparent; border: 1px solid var(--neon); color: var(--neon); font-weight: bold; cursor: pointer; text-transform: uppercase; }
+        button:hover { background: var(--neon); color: black; }
+
+        #visual-preview { margin-top: 15px; text-align: center; border: 1px dashed #222; padding: 10px; display: none; }
+        img { max-width: 100%; max-height: 250px; border: 1px solid #333; }
+    </style>
+</head>
+<body>
+
+<canvas id="matrix"></canvas>
+
+<div class="os-interface">
+    <div class="sidebar">
+        <div class="nav-icon active" onclick="showMod('text')" title="Metin Gizle">T</div>
+        <div class="nav-icon" onclick="showMod('image')" title="Resim Gizle">I</div>
+        <div class="nav-icon" onclick="showMod('vault')" title="Şifre Kasası">V</div>
+    </div>
+
+    <div class="workspace">
+        <h1 id="mod-title">TXT_ENCRYPTOR_MODULE</h1>
+
+        <div id="textMod">
+            <textarea id="txtIn" placeholder="GİZLİ_VERİ_GİRİŞİ..."></textarea>
+            <input type="password" id="txtKey" placeholder="GÜVENLİK_ANAHTARI">
+            <div class="btn-row">
+                <button onclick="runText(true)">Enjekte Et</button>
+                <button onclick="runText(false)">Ayıkla</button>
+            </div>
+        </div>
+
+        <div id="imageMod" style="display:none;">
+            <input type="file" id="fileIn" accept="image/*">
+            <textarea id="imgMsg" placeholder="RESME_GÖMÜLECEK_MESAJ..."></textarea>
+            <div class="btn-row">
+                <button onclick="runImg(true)">Piksel Enjekte</button>
+                <button onclick="runImg(false)">Piksel Ayıkla</button>
+            </div>
+            <div id="visual-preview"><img id="previewImg"></div>
+        </div>
+
+        <div id="vaultMod" style="display:none;">
+            <p style="font-size: 0.8rem; color: #555;">> Şifreleri güvenli bir "metin bloğu" içine sakla.</p>
+            <input type="text" id="vaultSite" placeholder="SİTE / UYGULAMA ADI">
+            <input type="text" id="vaultUser" placeholder="KULLANICI ADI">
+            <input type="password" id="vaultPass" placeholder="ŞİFRE">
+            <button onclick="saveToVault()">KASAYA EKLE</button>
+        </div>
+
+        <div id="output-display" style="margin-top:20px; padding:15px; border:1px solid #222; background:rgba(0,0,0,0.5); font-size:0.8rem;">
+            SYSTEM_STATUS: IDLE
+        </div>
+    </div>
+
+    <div class="terminal" id="term">
+        <div class="t-line">[OK] GHOST_GENESIS_v7 Booted.</div>
+        <div class="t-line">[OK] CasualPlotw OS initialized.</div>
+    </div>
+</div>
+
+<canvas id="canvasLab" style="display:none;"></canvas>
+
+<script>
+    // Audio Synthesizer (Sistem Sesleri)
+    const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+    function beep(freq = 440, type = 'square', duration = 0.1) {
+        const osc = audioCtx.createOscillator();
+        const gain = audioCtx.createGain();
+        osc.type = type;
+        osc.frequency.setValueAtTime(freq, audioCtx.currentTime);
+        gain.gain.setValueAtTime(0.05, audioCtx.currentTime);
+        osc.connect(gain);
+        gain.connect(audioCtx.destination);
+        osc.start();
+        osc.stop(audioCtx.currentTime + duration);
+    }
+
+    // Terminal Logging
+    function log(msg) {
+        const t = document.getElementById('term');
+        const time = new Date().toLocaleTimeString();
+        t.innerHTML += `<div class="t-line"><span style="color:#555">[${time}]</span> ${msg}</div>`;
+        t.scrollTop = t.scrollHeight;
+        beep(200, 'sine', 0.05);
+    }
+
+    // Mod Değişimi
+    function showMod(m) {
+        document.getElementById('textMod').style.display = m === 'text' ? 'block' : 'none';
+        document.getElementById('imageMod').style.display = m === 'image' ? 'block' : 'none';
+        document.getElementById('vaultMod').style.display = m === 'vault' ? 'block' : 'none';
+        document.getElementById('mod-title').innerText = m.toUpperCase() + '_MODULE';
+        log(`Switched to ${m} module.`);
+    }
+
+    // Matrix Background
+    const c = document.getElementById('matrix'); const ctx = c.getContext('2d');
+    c.width = window.innerWidth; c.height = window.innerHeight;
+    const drops = Array(Math.floor(c.width/15)).fill(1);
+    function draw() {
+        ctx.fillStyle = 'rgba(0,0,0,0.05)'; ctx.fillRect(0,0,c.width,c.height);
+        ctx.fillStyle = '#0F0'; ctx.font = '15px monospace';
+        drops.forEach((y, i) => {
+            const char = String.fromCharCode(0x30A0 + Math.random() * 96);
+            ctx.fillText(char, i*15, y*15);
+            if(y*15 > c.height && Math.random() > 0.975) drops[i] = 0;
+            drops[i]++;
+        });
+    }
+    setInterval(draw, 40);
+
+    // Engine - Text (Zero-Width)
+    const zw = ['\u200B', '\u200C', '\u200D', '\u200E'];
+    function runText(isEnc) {
+        const input = document.getElementById('txtIn').value;
+        const out = document.getElementById('output-display');
+        if(!input) return;
+
+        if(isEnc) {
+            log("Enjeksiyon başlatıldı...");
+            let b64 = btoa(unescape(encodeURIComponent(input)));
+            let res = "";
+            for(let c of b64) {
+                let b4 = c.charCodeAt(0).toString(4).padStart(4, '0');
+                for(let d of b4) res += zw[parseInt(d)];
+            }
+            out.innerText = "GİZLİ CÜMLE: Hava bugün biraz garip." + res;
+            log("Data başarılı bir şekilde gömüldü.");
+            beep(600, 'square', 0.2);
+        } else {
+            log("Tarama başlatılıyor...");
+            let found = "";
+            for(let c of input) { let i = zw.indexOf(c); if(i !== -1) found += i; }
+            try {
+                let b64 = "";
+                for(let i=0; i<found.length; i+=4) b64 += String.fromCharCode(parseInt(found.substr(i,4), 4));
+                out.innerText = "DECODED: " + decodeURIComponent(escape(atob(b64)));
+                log("Data başarıyla ayıklandı.");
+            } catch(e) { log("Hata: Veri bozulmuş!"); beep(100, 'sawtooth', 0.3); }
+        }
+    }
+
+    // Engine - Image
+    const fIn = document.getElementById('fileIn');
+    const pImg = document.getElementById('previewImg');
+    fIn.onchange = (e) => {
+        const r = new FileReader();
+        r.onload = (v) => { pImg.src = v.target.result; document.getElementById('visual-preview').style.display='block'; log("Image loaded."); };
+        r.readAsDataURL(e.target.files[0]);
+    }
+
+    function runImg(isEnc) {
+        if(!pImg.src) return;
+        const canv = document.getElementById('canvasLab');
+        const cX = canv.getContext('2d');
+        canv.width = pImg.naturalWidth; canv.height = pImg.naturalHeight;
+        cX.drawImage(pImg, 0, 0);
+        let d = cX.getImageData(0,0,canv.width,canv.height);
+
+        if(isEnc) {
+            const m = document.getElementById('imgMsg').value + "###";
+            log(`Piksel manipülasyonu: ${m.length} karakter.`);
+            let bin = m.split('').map(c => c.charCodeAt(0).toString(2).padStart(8,'0')).join('');
+            for(let i=0; i<bin.length; i++) d.data[i*4] = (d.data[i*4] & 0xFE) | parseInt(bin[i]);
+            cX.putImageData(d, 0, 0);
+            pImg.src = canv.toDataURL();
+            log("Enjeksiyon tamamlandı.");
+        } else {
+            log("LSB katmanı analiz ediliyor...");
+            let b = ""; let res = "";
+            for(let i=0; i<d.data.length/4; i++) {
+                b += (d.data[i*4] & 1).toString();
+                if(b.length === 8) {
+                    let c = String.fromCharCode(parseInt(b, 2));
+                    res += c; b = "";
+                    if(res.endsWith("###")) break;
+                }
+            }
+            document.getElementById('output-display').innerText = "ÇIKAN: " + res.replace("###", "");
+            log("Analiz başarılı.");
+        }
+    }
+</script>
+</body>
+</html>
